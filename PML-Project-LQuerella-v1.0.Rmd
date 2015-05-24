@@ -1,0 +1,80 @@
+---
+title: "PML-Project-LQuerella-v1.0"
+author: "Laurent Querella"
+date: "Sunday, May 24, 2015"
+output: html_document
+---
+
+```{r, echo=FALSE}
+source("PML-Project-LQuerella-v1.0.R")
+```
+
+# Approach
+
+## 1. Data Exploration
+
+As the dataset size is small (12Mb for the training set .csv file), I first examined the pml-training and pml_testing data in Excel.
+There are a couple of columns with either (mostly) empty values (e.g. "kurtosis_roll_belt") or missing values (e.g. "max_roll_belt"). It is interesting to look at the pml_testing data because it confirms that those columns (i.e. features) can be discarded as they do not contain any information. Hence, I reduced my number of features from 160 to 54. In this cleaning process, I also explicitly removed the first seven features which are obviously irrelevant.
+
+My second exploration consisted in plotting individual features (hist) to get some insight on their structure.
+One sees for instance that the quantities measured during the physical exercise could be cast into factor variables, as exemplified here:
+
+```{r, echo=FALSE}
+library(caret)
+hist(x1$roll_belt)
+```
+
+Splitting the training set into five subsets corresponding to the "classe" values (A, B, C, D, E), we see outliers giving indication of the importance of the respective features for predicting the "classe". As an example, we can compare feature "gyros_belt_y" in subset A and B. Summary shows that the maximum amplitude for A is about twice the maximum amplitude for B:
+
+```{r}
+rbind(summary(testB$gyros_belt_y),summary(testA$gyros_belt_y))
+```
+
+We could also observe this difference with histograms. For B, the feature "gyros_belt_y" could be replaced by a factor variable with two levels,
+
+```{r, echo=FALSE}
+hist(testB$gyros_belt_y)
+```
+
+whereas for A the distribution has a different shape and exhibits a larger amplitude on the x axis as mentioned above.
+
+```{r, echo=FALSE}
+hist(testA$gyros_belt_y)
+```
+
+This is better visualized with a qplot of the two features coloured by "classe" A or B: 
+
+```{r, echo=FALSE}
+qplot(gyros_belt_y, gyros_belt_x, colour=classe, data=testAB)
+```
+
+For other pairs of features we obtain similar hints:
+
+```{r, echo=FALSE}
+qplot(roll_belt, roll_arm, colour=classe, data=testDE)
+```
+
+## 2. Statistical Model
+I assumed that all the 54 remaining features are relevant to train the predictive model.
+To be able to estimate the performance of the model, I have split the training set to have a cross-validation set (60%-40%) .
+As the primary goal is to predict the "classe" on the test set, I adopted the following strategy (cf. Max Kuhn):
+
+1. Start with the most powerful black-box type models
+
+2. Get a sense of the best possible performance
+
+3. Fit more parsimonious/understandable models
+
+4. Evaluate the performance cost of using a simpler model
+
+Hence, I used random forest with the caret package (and default parameters) and to avoid performance issues, I preprocessed the training set with PCA (principal component analysis) with a variance threshold of 80%. This process reduced the number of predictors to 13. The resulting model fit applied to the cross-validation set yields an overall prediction accuracy of 96% and therefore the estimated lower bound on the Out-of-sample error is 4%.
+
+```{r, echo=FALSE}
+#source
+```
+
+
+```{r}
+predcv <- predict(modelFit, newdata=cvPC)
+confusionMatrix(predcv, z1_cv$classe)
+```
